@@ -47,7 +47,7 @@ examples:
         py3-cmd click --button 4 --index minutes timer  # up
         py3-cmd click --button 4 --index seconds timer  # up
 
-    width, height, relative_x, relative_y, x, y:
+    width, height, modifier, relative_x, relative_y, x, y:
         # py3-cmd allows users to specify click events with
         # more options. however, there are no modules that
         # uses the aforementioned options.
@@ -66,6 +66,7 @@ CLICK_OPTIONS = [
     ("button", "specify a button number (default %(default)s)"),
     ("height", "specify a height of the block, in pixel"),
     ("index", "specify an index value often found in modules"),
+    ("modifier", "specify a modifier key"),
     ("relative_x", "specify relative X on the block, from the top left"),
     ("relative_y", "specify relative Y on the block, from the top left"),
     ("width", "specify a width of the block, in pixel"),
@@ -142,6 +143,9 @@ class CommandRunner:
             # make an event
             event = {"name": name, "instance": instance}
             for name, message in CLICK_OPTIONS:
+                if name == "modifier":
+                    event["modifiers"] = data.get(name, [])
+                    continue
                 event[name] = data.get(name)
 
             if self.debug:
@@ -304,6 +308,8 @@ def command_parser():
             sp.add_argument(arg, metavar="INT", type=int, help=msg, default=1)
         elif name == "index":
             sp.add_argument(arg, metavar="INDEX", help=msg)
+        elif name == "modifier":
+            sp.add_argument(arg, metavar="KEY", action="append", help=msg)
         else:
             sp.add_argument(arg, metavar="INT", type=int, help=msg)
 
