@@ -115,6 +115,7 @@ class Py3:
         self._format_placeholders_cache = {}
         self._is_python_2 = sys.version_info < (3, 0)
         self._module = module
+        self._notifications = None
         self._report_exception_cache = set()
         self._thresholds = None
         self._threshold_gradients = {}
@@ -1261,3 +1262,59 @@ class Py3:
             auth=auth,
             cookiejar=cookiejar,
         )
+
+    def _notification_init(self):
+        """
+        Initiate and check notifications dict
+        """
+        self._notifications = {}
+        notifications = getattr(self._py3status_module, "notifications", {})
+        if not notifications:
+            return
+        for x in ['changed', 'click', 'current']:
+            self._notifications[x] = notifications.get(x, False)
+            if self._notifications[x]:
+                if x in ['changed', 'current']:
+                    self._notifications.setdefault('main', []).append(x)
+        changed = self.storage_get('._notification_changed')
+        self._notifications.setdefault('cache', {})['changed'] = changed
+
+    def _notification_cast(self, data, state):
+        """
+        Create and convert supported Composites to strings. Return dict.
+
+        :param data: Notification data to be formatted, casted, etc.
+        :param state: Notification state: changed, click, or current.
+        """
+        temporary = self._notifications[state].copy()
+        for x in ['title', 'msg']:
+            if x in temporary:
+                temporary[x] = self.get_composite_string(
+                    self.safe_format(temporary[x], data)
+                )
+        return temporary
+
+    def notification_set(self, data, method=None):
+        """
+        Send notifications based on user-defined policies.
+
+        :param data: Notification data to be converted.
+        :param method: Notification method. main or click. None implies main.
+        """
+        if self._notifications is None:
+            self._notification_init()
+        if not self._notifications:
+            return
+
+        if method in [None, 'main']:
+            if self._notifications['changed']:
+                changed = self._notification_cast(data, 'changed')
+                if changed != self._notifications['cache']['changed']:
+                    self._notifications['cache']['changed'] = changed
+                    self.storage_set('._notification_changed', changed)
+                    self.notify_user(**changed)
+            if self._notifications['current']:
+                self.notify_user(**self._notification_cast(data, 'current'))
+        elif method == 'click':
+            if self._notifications['click']:
+                self.notify_user(**self._notification_cast(data, 'click'))

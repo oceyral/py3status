@@ -108,36 +108,6 @@ class Py3status:
             raise Exception(STRING_ERROR)
 
         self.button_refresh = 2
-        self.notification = {'normal': [], 'click': False}
-        if self.notifications:
-            for x in ['changed', 'click', 'current']:
-                self.notification[x] = self.notifications.get(x, False)
-                if self.notification[x]:
-                    if x in ['changed', 'current']:
-                        self.notification['normal'].append(x)
-            self.last_changed = self.py3.storage_get('changed')
-
-    def _get_notification(self, state):
-        temporary = self.notification[state].copy()
-        for x in ['title', 'msg']:
-            if x in temporary:
-                temporary[x] = self.py3.get_composite_string(
-                    self.py3.safe_format(temporary[x], self.script_data)
-                )
-        return temporary
-
-    def _notify_user(self, state=None):
-        if state is None:
-            if self.notification['changed']:
-                changed = self._get_notification('changed')
-                if changed != self.last_changed:
-                    self.last_changed = changed
-                    self.py3.storage_set('changed', changed)
-                    self.py3.notify_user(**changed)
-            if self.notification['current']:
-                self.py3.notify_user(**self._get_notification('current'))
-        elif state == 'click':
-            self.py3.notify_user(**self._get_notification('click'))
 
     def external_script(self):
         output_lines = None
@@ -188,16 +158,14 @@ class Py3status:
         )
 
         self.script_data['output_full'] = output_full
-        if self.notification['normal']:
-            self._notify_user()
+        self.py3.notification_set(self.script_data)
 
         return response
 
     def on_click(self, event):
         button = event["button"]
         if button != self.button_refresh:
-            if self.notification['click']:
-                self._notify_user('click')
+            self.py3.notification_set(self.script_data, 'click')
             self.py3.prevent_refresh()
 
 
